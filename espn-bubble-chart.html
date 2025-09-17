@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESPN Fantasy Football Bubble Chart</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #eef2f7;
+        color: #0f1c2d;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background: linear-gradient(180deg, #f5f7fb 0%, #eef2f7 100%);
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+
+      h1 {
+        font-size: clamp(1.9rem, 2.8vw, 2.4rem);
+        margin-bottom: 0.25rem;
+        color: #0b2447;
+      }
+
+      p.lead {
+        margin-top: 0;
+        color: #405677;
+        max-width: 720px;
+      }
+
+      section.controls {
+        margin: 28px 0 20px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(12, 42, 89, 0.08);
+        padding: 24px 28px;
+      }
+
+      form#config-form {
+        display: grid;
+        gap: 16px;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #123456;
+      }
+
+      label span {
+        margin-bottom: 6px;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      input[type="url"] {
+        border-radius: 10px;
+        border: 1px solid #cbd4e6;
+        padding: 10px 12px;
+        font-size: 1rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      input[type="url"]:focus {
+        outline: none;
+        border-color: #3978ff;
+        box-shadow: 0 0 0 3px rgba(57, 120, 255, 0.25);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 4px;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 10px 24px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #fff;
+        box-shadow: 0 12px 25px rgba(37, 99, 235, 0.25);
+      }
+
+      button.secondary {
+        background: rgba(13, 71, 161, 0.12);
+        color: #0b2447;
+      }
+
+      button:active {
+        transform: translateY(1px);
+        box-shadow: none;
+      }
+
+      .message {
+        margin-top: 16px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+      }
+
+      .message.info {
+        background: rgba(37, 99, 235, 0.1);
+        color: #1e3a8a;
+      }
+
+      .message.error {
+        background: rgba(229, 57, 53, 0.15);
+        color: #b71c1c;
+      }
+
+      .message.hidden {
+        display: none !important;
+      }
+
+      #chart {
+        margin-top: 32px;
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 24px 60px rgba(15, 35, 95, 0.12);
+        padding: 16px;
+      }
+
+      svg.bubble-chart {
+        width: 100%;
+        height: auto;
+        max-height: 820px;
+      }
+
+      .grid line {
+        stroke: rgba(15, 35, 95, 0.08);
+      }
+
+      .grid path {
+        display: none;
+      }
+
+      .area-below {
+        fill: #f8d7da;
+        opacity: 0.45;
+      }
+
+      .area-above {
+        fill: #d4f4dd;
+        opacity: 0.4;
+      }
+
+      .diagonal-line {
+        stroke: #1f2a44;
+        stroke-width: 2;
+        stroke-dasharray: 6 6;
+        opacity: 0.65;
+      }
+
+      .team circle {
+        stroke: rgba(20, 33, 61, 0.7);
+        stroke-width: 1.2px;
+        opacity: 0.82;
+      }
+
+      .team-label text {
+        font-size: 0.82rem;
+        fill: #0b1f34;
+      }
+
+      .team-label rect {
+        fill: rgba(255, 255, 255, 0.88);
+        stroke: rgba(12, 32, 66, 0.12);
+        stroke-width: 1;
+      }
+
+      .axis-label {
+        font-size: 1rem;
+        font-weight: 600;
+        fill: #13294b;
+      }
+
+      .axis text {
+        font-size: 0.9rem;
+        fill: #1c314c;
+      }
+
+      .axis path,
+      .axis line {
+        stroke: rgba(19, 41, 75, 0.4);
+      }
+
+      .chart-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        fill: #0b2447;
+      }
+
+      .chart-subtitle {
+        font-size: 0.95rem;
+        fill: #466184;
+      }
+
+      .stats-box rect {
+        fill: rgba(173, 216, 230, 0.86);
+        stroke: rgba(11, 72, 112, 0.45);
+        stroke-width: 1.2;
+      }
+
+      .stats-box text {
+        font-size: 0.9rem;
+        fill: #09304f;
+      }
+
+      .legend text {
+        font-size: 0.9rem;
+        fill: #13294b;
+      }
+
+      details.proxy-help {
+        margin-top: 20px;
+        background: rgba(15, 76, 129, 0.07);
+        border-radius: 14px;
+        padding: 16px 18px;
+      }
+
+      details.proxy-help summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: #0b2447;
+      }
+
+      details.proxy-help pre {
+        background: rgba(15, 35, 95, 0.07);
+        padding: 12px 16px;
+        border-radius: 12px;
+        overflow-x: auto;
+      }
+
+      @media (max-width: 860px) {
+        section.controls {
+          padding: 20px;
+        }
+
+        #chart {
+          padding: 12px;
+        }
+
+        .stats-box rect {
+          fill: rgba(173, 216, 230, 0.92);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        button {
+          width: 100%;
+        }
+
+        .team-label {
+          transform: translate(0, 0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>ESPN Fantasy Football Bubble Chart</h1>
+        <p class="lead">
+          Generate the same points-for vs. points-against bubble visualization from your
+          ESPN fantasy football league data—directly in the browser.
+        </p>
+      </header>
+
+      <section class="controls">
+        <form id="config-form">
+          <div class="field-grid">
+            <label>
+              <span>League ID</span>
+              <input
+                id="leagueId"
+                name="leagueId"
+                type="text"
+                placeholder="e.g. 123456"
+                autocomplete="off"
+                required
+              />
+            </label>
+            <label>
+              <span>Season (Year)</span>
+              <input id="season" name="season" type="number" min="2018" max="2035" step="1" />
+            </label>
+            <label>
+              <span>Proxy URL (optional)</span>
+              <input
+                id="proxyUrl"
+                name="proxyUrl"
+                type="url"
+                placeholder="Use for private leagues behind a proxy"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              <span>espn_s2 Cookie (optional)</span>
+              <input
+                id="espnS2"
+                name="espnS2"
+                type="text"
+                placeholder="Only needed for private leagues"
+                autocomplete="off"
+              />
+            </label>
+            <label>
+              <span>SWID Cookie (optional)</span>
+              <input id="swid" name="swid" type="text" placeholder="{ABC...}" autocomplete="off" />
+            </label>
+          </div>
+          <div class="actions">
+            <button type="submit" class="primary">Load League</button>
+            <button type="button" class="secondary" id="use-sample">Use Sample Data</button>
+          </div>
+        </form>
+
+        <div id="status" class="message info hidden" role="status"></div>
+        <div id="error" class="message error hidden" role="alert"></div>
+
+        <details class="proxy-help">
+          <summary>Need to access a private league?</summary>
+          <p>
+            ESPN blocks cross-origin requests that include authentication cookies. Host this file alongside a
+            lightweight proxy (serverless function, Cloudflare Worker, etc.) that forwards the request to ESPN and
+            attaches your <code>espn_s2</code> and <code>SWID</code> cookie values.
+          </p>
+          <p>
+            Configure the proxy URL above and the script will POST a JSON payload with the target ESPN URL and optional
+            cookie values. The proxy should add the cookies as request headers and stream the JSON response back to the
+            browser.
+          </p>
+          <pre><code>// Example Cloudflare Worker
+export default {
+  async fetch(request) {
+    const { url, espnS2, swid } = await request.json();
+    const cookieParts = [];
+    if (espnS2) cookieParts.push(`espn_s2=${espnS2}`);
+    if (swid) cookieParts.push(`SWID=${swid}`);
+    const response = await fetch(url, {
+      headers: cookieParts.length ? { Cookie: cookieParts.join('; ') } : {},
+    });
+    return new Response(await response.text(), {
+      headers: { 'content-type': 'application/json' },
+      status: response.status,
+    });
+  },
+};</code></pre>
+        </details>
+      </section>
+
+      <section id="chart" aria-live="polite"></section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" crossorigin="anonymous"></script>
+    <script>
+      (function () {
+        const form = document.getElementById('config-form');
+        const statusEl = document.getElementById('status');
+        const errorEl = document.getElementById('error');
+        const chartEl = document.getElementById('chart');
+        const defaultConfig = {
+          leagueId: '',
+          season: 2025,
+          proxyUrl: '',
+          espnS2: '',
+          swid: '',
+        };
+
+        const sampleApiResponse = {
+          settings: {
+            name: 'Sample Fantasy Football League',
+            divisions: [
+              { id: 0, name: 'Alpha Division' },
+              { id: 1, name: 'Omega Division' },
+            ],
+          },
+          teams: [
+            {
+              id: 1,
+              location: 'Gotham',
+              nickname: 'Knights',
+              record: { overall: { wins: 9, losses: 3, ties: 0 } },
+              pointsFor: 1478.6,
+              pointsAgainst: 1274.1,
+              divisionId: 0,
+            },
+            {
+              id: 2,
+              location: 'Metropolis',
+              nickname: 'Shields',
+              record: { overall: { wins: 8, losses: 4, ties: 0 } },
+              pointsFor: 1441.2,
+              pointsAgainst: 1192.8,
+              divisionId: 0,
+            },
+            {
+              id: 3,
+              location: 'Central',
+              nickname: 'City Speedsters',
+              record: { overall: { wins: 7, losses: 5, ties: 0 } },
+              pointsFor: 1388.7,
+              pointsAgainst: 1366.4,
+              divisionId: 0,
+            },
+            {
+              id: 4,
+              location: 'Star',
+              nickname: 'Lancers',
+              record: { overall: { wins: 5, losses: 7, ties: 0 } },
+              pointsFor: 1305.3,
+              pointsAgainst: 1428.5,
+              divisionId: 1,
+            },
+            {
+              id: 5,
+              location: 'Coast',
+              nickname: 'Guardians',
+              record: { overall: { wins: 6, losses: 6, ties: 0 } },
+              pointsFor: 1336.1,
+              pointsAgainst: 1352.2,
+              divisionId: 1,
+            },
+            {
+              id: 6,
+              location: 'Keystone',
+              nickname: 'Sentinels',
+              record: { overall: { wins: 4, losses: 8, ties: 0 } },
+              pointsFor: 1210.5,
+              pointsAgainst: 1398.4,
+              divisionId: 1,
+            },
+            {
+              id: 7,
+              location: 'National',
+              nickname: 'Titans',
+              record: { overall: { wins: 3, losses: 9, ties: 0 } },
+              pointsFor: 1198.4,
+              pointsAgainst: 1411.7,
+              divisionId: 0,
+            },
+            {
+              id: 8,
+              location: 'Ivy',
+              nickname: 'Academics',
+              record: { overall: { wins: 7, losses: 5, ties: 1 } },
+              pointsFor: 1402.3,
+              pointsAgainst: 1331.6,
+              divisionId: 1,
+            },
+          ],
+        };
+
+        if (!window.d3) {
+          showError('D3 failed to load. Please check your network connection.');
+          return;
+        }
+
+        hydrateForm();
+        attachListeners();
+
+        function hydrateForm() {
+          const params = new URLSearchParams(window.location.search);
+          defaultConfig.leagueId = params.get('leagueId') || '';
+          defaultConfig.season = parseInt(params.get('season') || params.get('year'), 10) || 2025;
+          defaultConfig.proxyUrl = params.get('proxy') || '';
+          form.leagueId.value = defaultConfig.leagueId;
+          form.season.value = defaultConfig.season;
+          form.proxyUrl.value = defaultConfig.proxyUrl;
+          form.espnS2.value = '';
+          form.swid.value = '';
+
+          if (defaultConfig.leagueId) {
+            fetchAndRender(readConfig());
+          } else {
+            showStatus('Enter your league ID and season, then click “Load League”.');
+          }
+        }
+
+        function attachListeners() {
+          form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const config = readConfig();
+            if (!config.leagueId) {
+              showError('Please provide a league ID before loading data.');
+              return;
+            }
+            fetchAndRender(config);
+          });
+
+          document.getElementById('use-sample').addEventListener('click', () => {
+            showError('');
+            showStatus('Showing sample data. Update the form to load your league.');
+            renderFromApi(sampleApiResponse, {
+              leagueName: sampleApiResponse.settings?.name || 'Sample League',
+              season: form.season.value || defaultConfig.season,
+              source: 'Sample Data',
+            });
+          });
+        }
+
+        async function fetchAndRender(config) {
+          try {
+            showError('');
+            showStatus('Fetching league data…');
+            const apiData = await fetchLeagueData(config);
+            renderFromApi(apiData, {
+              leagueName: apiData.settings?.name || apiData.leagueName || 'ESPN Fantasy League',
+              season: config.season,
+            });
+            const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            showStatus(`Updated ${timestamp}.`);
+          } catch (error) {
+            console.error(error);
+            const requiresProxy = (config.espnS2 || config.swid) && !config.proxyUrl;
+            const hint = requiresProxy
+              ? ' Private leagues require a proxy to attach authentication cookies.'
+              : '';
+            showError(`Unable to fetch data (${error.message || 'network error'}).${hint}`);
+            showStatus('');
+          }
+        }
+
+        async function fetchLeagueData(config) {
+          const endpoint = `https://fantasy.espn.com/apis/v3/games/ffl/seasons/${config.season}/segments/0/leagues/${config.leagueId}?view=mTeam&view=mStandings`;
+          if (config.proxyUrl) {
+            const response = await fetch(config.proxyUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: endpoint,
+                espnS2: config.espnS2 || undefined,
+                swid: config.swid || undefined,
+              }),
+            });
+            if (!response.ok) {
+              throw new Error(`${response.status} ${response.statusText}`.trim());
+            }
+            return await response.json();
+          }
+
+          if (config.espnS2 || config.swid) {
+            console.warn('Authentication cookies provided without a proxy. The request may fail due to CORS.');
+          }
+
+          const response = await fetch(endpoint, { cache: 'no-cache' });
+          if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`.trim());
+          }
+          return await response.json();
+        }
+
+        function readConfig() {
+          return {
+            leagueId: form.leagueId.value.trim(),
+            season: parseInt(form.season.value, 10) || 2025,
+            proxyUrl: form.proxyUrl.value.trim(),
+            espnS2: form.espnS2.value.trim(),
+            swid: form.swid.value.trim(),
+          };
+        }
+
+        function showStatus(text) {
+          if (!text) {
+            statusEl.textContent = '';
+            statusEl.classList.add('hidden');
+            return;
+          }
+          statusEl.textContent = text;
+          statusEl.classList.remove('hidden');
+        }
+
+        function showError(text) {
+          if (!text) {
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+            return;
+          }
+          errorEl.textContent = text;
+          errorEl.classList.remove('hidden');
+        }
+
+        function renderFromApi(rawData, meta = {}) {
+          const transformed = transformTeams(rawData);
+          if (!transformed.teams.length) {
+            chartEl.innerHTML = '';
+            showError('No team data available for this league yet.');
+            return;
+          }
+          renderChart(transformed.teams, {
+            leagueName: meta.leagueName || rawData.settings?.name || 'ESPN Fantasy League',
+            season: meta.season || defaultConfig.season,
+            divisions: transformed.divisionLookup,
+          });
+        }
+
+        function transformTeams(rawData) {
+          const divisionLookup = new Map();
+          const divisionSource = rawData.settings?.divisions || rawData.settings?.division || [];
+          if (Array.isArray(divisionSource)) {
+            divisionSource.forEach((division, index) => {
+              const identifier = division.id ?? division.divisionId ?? index;
+              const name = division.name || division.displayName || division.abbreviation || `Division ${index + 1}`;
+              divisionLookup.set(String(identifier), name);
+            });
+          }
+
+          const teams = (rawData.teams || [])
+            .map((team) => {
+              const name = buildTeamName(team);
+              const record = extractRecord(team);
+              const pointsFor = toNumber(
+                team.pointsFor ?? team.totalPointsFor ?? team.adjustedPointsFor ?? team.record?.pointsFor ?? team.stats?.pointsFor
+              );
+              const pointsAgainst = toNumber(
+                team.pointsAgainst ?? team.totalPointsAgainst ?? team.adjustedPointsAgainst ?? team.record?.pointsAgainst ?? team.stats?.pointsAgainst
+              );
+              const divisionId = team.divisionId ?? team.division?.id ?? null;
+              const divisionKey = divisionId !== null && divisionId !== undefined ? String(divisionId) : 'Unknown';
+              const ties = toNumber(record.ties ?? record.draws);
+
+              return {
+                id: team.id,
+                name,
+                wins: toNumber(record.wins) || 0,
+                losses: toNumber(record.losses) || 0,
+                ties: Number.isFinite(ties) ? ties : 0,
+                pointsFor,
+                pointsAgainst,
+                divisionId,
+                divisionName:
+                  divisionLookup.get(divisionKey) ||
+                  (Number.isFinite(divisionId) ? `Division ${Number(divisionId) + 1}` : 'Division'),
+              };
+            })
+            .filter((team) => Number.isFinite(team.pointsFor) && Number.isFinite(team.pointsAgainst));
+
+          return { teams, divisionLookup };
+        }
+
+        function buildTeamName(team) {
+          const parts = [];
+          if (team.location) parts.push(String(team.location).trim());
+          if (team.nickname) parts.push(String(team.nickname).trim());
+          const combined = parts.join(' ').trim();
+          if (combined) return combined;
+          if (team.name) return String(team.name).trim();
+          if (team.teamNickname) return String(team.teamNickname).trim();
+          if (team.abbrev) return String(team.abbrev).trim();
+          return `Team ${team.id ?? ''}`.trim();
+        }
+
+        function extractRecord(team) {
+          const candidates = [];
+          if (team.record) {
+            if (Array.isArray(team.record)) {
+              team.record.forEach((entry) => candidates.push(entry));
+            }
+            if (team.record.overall) candidates.push(team.record.overall);
+            if (team.record.overallRecord) candidates.push(team.record.overallRecord);
+            if (team.record.total) candidates.push(team.record.total);
+            if (team.record.entries) {
+              const entries = Array.isArray(team.record.entries) ? team.record.entries : Object.values(team.record.entries);
+              entries.forEach((entry) => {
+                if (entry) {
+                  candidates.push(entry.stats || entry);
+                }
+              });
+            }
+          }
+          if (team.overallRecord) candidates.push(team.overallRecord);
+
+          for (const candidate of candidates) {
+            const normalized = normalizeRecord(candidate);
+            if (normalized) return normalized;
+          }
+
+          return { wins: 0, losses: 0, ties: 0 };
+        }
+
+        function normalizeRecord(value) {
+          if (!value || typeof value !== 'object') return null;
+          const wins = toNumber(value.wins);
+          const losses = toNumber(value.losses);
+          const ties = toNumber(value.ties ?? value.draws);
+          if (Number.isFinite(wins) && Number.isFinite(losses)) {
+            return {
+              wins,
+              losses,
+              ties: Number.isFinite(ties) ? ties : 0,
+            };
+          }
+          return null;
+        }
+
+        function toNumber(value) {
+          if (value === null || value === undefined) return NaN;
+          const numeric = typeof value === 'string' ? Number(value.replace(/,/g, '')) : Number(value);
+          return Number.isFinite(numeric) ? numeric : NaN;
+        }
+
+        function renderChart(teams, metadata) {
+          chartEl.innerHTML = '';
+
+          const width = 1120;
+          const height = 760;
+          const margin = { top: 80, right: 320, bottom: 80, left: 95 };
+          const innerWidth = width - margin.left - margin.right;
+          const innerHeight = height - margin.top - margin.bottom;
+
+          const svg = d3
+            .select('#chart')
+            .append('svg')
+            .attr('class', 'bubble-chart')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('role', 'img')
+            .attr(
+              'aria-label',
+              `Bubble chart of points for versus points against for ${metadata.leagueName || 'fantasy league'} in ${metadata.season}`
+            );
+
+          const chartGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+          const pfValues = teams.map((team) => team.pointsFor);
+          const paValues = teams.map((team) => team.pointsAgainst);
+          const allValues = pfValues.concat(paValues);
+          const minVal = d3.min(allValues);
+          const maxVal = d3.max(allValues);
+          const range = maxVal - minVal;
+          const padding = range ? range * 0.08 : Math.max(20, Math.abs(maxVal || 0) * 0.05 + 20);
+          const domainMin = minVal - padding;
+          const domainMax = maxVal + padding;
+
+          const xScale = d3.scaleLinear().domain([domainMin, domainMax]).range([0, innerWidth]);
+          xScale.nice();
+          const [niceMin, niceMax] = xScale.domain();
+          const yScale = d3.scaleLinear().domain([niceMin, niceMax]).range([innerHeight, 0]);
+
+          const areaData = [
+            { x: niceMin, y: niceMin },
+            { x: niceMax, y: niceMax },
+          ];
+
+          const areaBelow = d3
+            .area()
+            .x((d) => xScale(d.x))
+            .y0(yScale(niceMin))
+            .y1((d) => yScale(d.y))
+            .curve(d3.curveLinear);
+
+          const areaAbove = d3
+            .area()
+            .x((d) => xScale(d.x))
+            .y0((d) => yScale(d.y))
+            .y1(yScale(niceMax))
+            .curve(d3.curveLinear);
+
+          chartGroup.append('path').datum(areaData).attr('class', 'area-below').attr('d', areaBelow);
+          chartGroup.append('path').datum(areaData).attr('class', 'area-above').attr('d', areaAbove);
+
+          const xGrid = d3.axisBottom(xScale).tickSize(-innerHeight).tickFormat('');
+          const yGrid = d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat('');
+
+          chartGroup.append('g').attr('class', 'grid grid-x').attr('transform', `translate(0,${innerHeight})`).call(xGrid);
+          chartGroup.append('g').attr('class', 'grid grid-y').call(yGrid);
+
+          chartGroup
+            .append('line')
+            .attr('class', 'diagonal-line')
+            .attr('x1', xScale(niceMin))
+            .attr('y1', yScale(niceMin))
+            .attr('x2', xScale(niceMax))
+            .attr('y2', yScale(niceMax));
+
+          const winsExtent = d3.extent(teams, (team) => team.wins);
+          const minWins = winsExtent[0];
+          const maxWins = winsExtent[1];
+          const areaScale = d3.scaleLinear().domain([minWins, maxWins]).range([220, 820]);
+          const radiusForWins = (wins) => {
+            if (!Number.isFinite(minWins) || !Number.isFinite(maxWins) || minWins === maxWins) {
+              return Math.sqrt(520 / Math.PI);
+            }
+            return Math.sqrt(areaScale(wins) / Math.PI);
+          };
+
+          const teamGroup = chartGroup.append('g').attr('class', 'teams');
+
+          const teamNodes = teamGroup
+            .selectAll('.team')
+            .data(teams)
+            .enter()
+            .append('g')
+            .attr('class', 'team');
+
+          teamNodes
+            .append('circle')
+            .attr('cx', (d) => xScale(d.pointsAgainst))
+            .attr('cy', (d) => yScale(d.pointsFor))
+            .attr('r', (d) => radiusForWins(d.wins))
+            .attr('fill', (d) => colorByRecord(d));
+
+          teamNodes
+            .append('title')
+            .text(
+              (d) =>
+                `${d.name}\nRecord: ${formatRecord(d)}\nPoints For: ${formatNumber(d.pointsFor)}\nPoints Against: ${formatNumber(d.pointsAgainst)}`
+            );
+
+          const labelOffset = 10;
+          const labels = teamNodes
+            .append('g')
+            .attr('class', 'team-label')
+            .attr('transform', (d) => `translate(${xScale(d.pointsAgainst) + labelOffset}, ${yScale(d.pointsFor) - labelOffset})`);
+
+          labels
+            .append('text')
+            .attr('dy', '0.35em')
+            .text((d) => `${d.name} (${d.wins})`);
+
+          labels.each(function () {
+            const text = d3.select(this).select('text');
+            const bbox = text.node().getBBox();
+            d3.select(this)
+              .insert('rect', 'text')
+              .attr('x', bbox.x - 6)
+              .attr('y', bbox.y - 4)
+              .attr('width', bbox.width + 12)
+              .attr('height', bbox.height + 8)
+              .attr('rx', 6)
+              .attr('ry', 6);
+          });
+
+          const axisFormat = d3.format(Math.abs(niceMax) >= 1000 ? ',.0f' : '.0f');
+          const xAxis = d3.axisBottom(xScale).ticks(6).tickFormat(axisFormat);
+          const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(axisFormat);
+
+          chartGroup.append('g').attr('class', 'axis x-axis').attr('transform', `translate(0,${innerHeight})`).call(xAxis);
+          chartGroup.append('g').attr('class', 'axis y-axis').call(yAxis);
+
+          chartGroup
+            .append('text')
+            .attr('class', 'axis-label')
+            .attr('x', innerWidth / 2)
+            .attr('y', innerHeight + 56)
+            .attr('text-anchor', 'middle')
+            .text('Points Against');
+
+          chartGroup
+            .append('text')
+            .attr('class', 'axis-label')
+            .attr('transform', `rotate(-90)`)
+            .attr('x', -innerHeight / 2)
+            .attr('y', -60)
+            .attr('text-anchor', 'middle')
+            .text('Points For');
+
+          svg
+            .append('text')
+            .attr('class', 'chart-title')
+            .attr('x', margin.left)
+            .attr('y', margin.top - 34)
+            .text(
+              `${metadata.leagueName || 'Fantasy Football League'} Performance — Points For vs. Points Against (${metadata.season})`
+            );
+
+          svg
+            .append('text')
+            .attr('class', 'chart-subtitle')
+            .attr('x', margin.left)
+            .attr('y', margin.top - 12)
+            .text('Bubble size indicates wins · Green = winning record · Red = losing record · Gray = even record');
+
+          const statsLines = buildStats(teams, metadata);
+          const statsGroup = svg
+            .append('g')
+            .attr('class', 'stats-box')
+            .attr('transform', `translate(${width - margin.right + 26}, ${margin.top})`);
+
+          const statsRect = statsGroup.append('rect').attr('rx', 16).attr('ry', 16);
+
+          const statsText = statsGroup.append('text').attr('x', 18).attr('y', 24);
+          statsLines.forEach((line, index) => {
+            if (line === '__BLANK__') {
+              statsText.append('tspan').attr('x', 18).attr('dy', 12).text('');
+              return;
+            }
+            statsText
+              .append('tspan')
+              .attr('x', 18)
+              .attr('dy', index === 0 ? 0 : 18)
+              .attr('font-weight', index <= 1 || line.endsWith(':') ? '700' : null)
+              .text(line);
+          });
+
+          const statsBox = statsText.node().getBBox();
+          statsRect
+            .attr('width', statsBox.width + 32)
+            .attr('height', statsBox.height + 28)
+            .attr('x', 0)
+            .attr('y', 0);
+
+          const legendItems = [
+            { label: 'Winning Record', color: '#2ecc71' },
+            { label: 'Losing Record', color: '#e74c3c' },
+            { label: 'Even Record', color: '#95a5a6' },
+          ];
+
+          const legend = svg
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', `translate(${width - margin.right + 26}, ${margin.top + statsBox.height + 50})`);
+
+          legendItems.forEach((item, index) => {
+            const entry = legend.append('g').attr('transform', `translate(0, ${index * 28})`);
+            entry
+              .append('rect')
+              .attr('width', 20)
+              .attr('height', 20)
+              .attr('rx', 5)
+              .attr('ry', 5)
+              .attr('fill', item.color)
+              .attr('stroke', 'rgba(20, 33, 61, 0.4)')
+              .attr('stroke-width', 1);
+            entry.append('text').attr('x', 28).attr('y', 15).text(item.label);
+          });
+        }
+
+        function colorByRecord(team) {
+          if (team.wins > team.losses) return '#2ecc71';
+          if (team.losses > team.wins) return '#e74c3c';
+          return '#95a5a6';
+        }
+
+        function formatRecord(team) {
+          const base = `${team.wins}-${team.losses}`;
+          return team.ties ? `${base}-${team.ties}` : base;
+        }
+
+        function formatNumber(value) {
+          return Number.isFinite(value) ? Number(value).toFixed(1) : '—';
+        }
+
+        function buildStats(teams, metadata) {
+          const lines = [];
+          const leagueLine = metadata.leagueName ? `${metadata.leagueName}` : 'Fantasy League';
+          lines.push(leagueLine);
+          lines.push(`Season ${metadata.season}`);
+          lines.push('__BLANK__');
+          lines.push(`Teams: ${teams.length}`);
+          lines.push(`Avg Points For: ${formatNumber(d3.mean(teams, (team) => team.pointsFor))}`);
+          lines.push(`Avg Points Against: ${formatNumber(d3.mean(teams, (team) => team.pointsAgainst))}`);
+          lines.push('__BLANK__');
+          lines.push('Division Averages:');
+
+          const byDivision = d3.rollups(
+            teams,
+            (members) => ({
+              pointsFor: d3.mean(members, (member) => member.pointsFor),
+              pointsAgainst: d3.mean(members, (member) => member.pointsAgainst),
+            }),
+            (team) => team.divisionName
+          );
+
+          if (byDivision.length === 0) {
+            lines.push('No division data available');
+            return lines;
+          }
+
+          byDivision
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .forEach(([divisionName, stats]) => {
+              lines.push(
+                `${divisionName}: PF ${formatNumber(stats.pointsFor)}, PA ${formatNumber(stats.pointsAgainst)}`
+              );
+            });
+
+          return lines;
+        }
+      })();
+    </script>
+  </body>
+</html>
